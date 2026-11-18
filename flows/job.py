@@ -1,0 +1,39 @@
+"""Orquestador que ejecuta las etapas del pipeline en orden."""
+
+import argparse
+import importlib
+
+from flows.common.logging import get_logger
+
+log = get_logger(__name__)
+
+STAGES = {
+    "ingestion": "flows.00_ingestion",
+    "silver": "flows.01_data_engineering",
+    "gold": "flows.03_aggregation",
+    "train": "flows.05_ml_models",
+}
+
+
+def run_stage(name: str):
+    """Ejecuta una etapa registrada y devuelve su resultado."""
+    if name not in STAGES:
+        raise ValueError(f"Etapa desconocida: {name}")
+    module = importlib.import_module(STAGES[name])
+    log.info("Inicio de etapa: %s", name)
+    result = module.run()
+    log.info("Fin de etapa: %s", name)
+    return result
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--stage", choices=[*STAGES, "all"], default="all")
+    args = parser.parse_args(argv)
+    names = list(STAGES) if args.stage == "all" else [args.stage]
+    for name in names:
+        run_stage(name)
+
+
+if __name__ == "__main__":
+    main()
